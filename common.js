@@ -2,7 +2,7 @@
  *                                    *                                      *
  *  File:     common.js               *   Author:  oc (Ortwin Cars.)         *
  *                                    *                                      *
- *  Version:  0.2.8b                  *   Date:    2013-07-25                *
+ *  Version:  0.2.9                   *   Date:    2013-07-25                *
  *                                    *                                      *
  *  Module:   global                  *   E-Mail:  ohc84@gmx-topmail.de      *
  *                                    *                                      *
@@ -14,6 +14,7 @@
 
 var oc = function() {
     var _removeIEBorders = false; // used for VE-HTML5 project (lots of nested iframes)
+    var _IE8EventListeners = {};
     var _keys = [];
     var _hashMap = {};  // get properties from location.search
     var _mousePos = { e: window, clientX: 0, clientY: 0 }; // might be a little displaced
@@ -87,8 +88,7 @@ var oc = function() {
         var array = str.split('&'); // '?' entfernen
         var parts = array.length;
         
-        for(var i=0; i<parts; ++i)
-        {
+        for(var i=0; i<parts; ++i) {
             var eq = array[i].indexOf('=');
             _keys[i] = array[i].substring(0,eq);
             var val = array[i].substring(eq+1,array[i].length);
@@ -100,8 +100,7 @@ var oc = function() {
     }
 
     function getKeysFromSearch() {
-        if(_hashMap)
-        {
+        if(_hashMap) {
             return _keys;
         }
     }
@@ -162,7 +161,7 @@ var oc = function() {
     }
     
     function show(id, center) {
-        center = !center ? _mousePos.x + "," + _mousePos.y : "";
+        center = !center ? _mousePos.clientX + "," + _mousePos.clientY : "";
         parent.postMessage(_flags.onshow + ";" + id + ";" + center, "*"); 
     }
     
@@ -245,7 +244,7 @@ var oc = function() {
         document.getElementsByTagName('head')[0].appendChild(snode);  
     }
     
-    function loadCSS(scriptname) {  
+    window.loadCSS = function(scriptname) {  
         var snode = document.createElement('link');  
         snode.setAttribute('type','text/css');  
         snode.setAttribute('href',scriptname);  
@@ -265,18 +264,21 @@ var oc = function() {
         if(obj.addEventListener) {
             return obj.addEventListener(type, fn, bub ? bub : false);
         }
-        if(obj.attachEvent) { // for IE8 but very buggy behaviour (asp.net) // http://stackoverflow.com/questions/15952943/ie-attachevent-call-returns-true-but-handler-shows-null
+        
+        // no use of attachEvent() 'cause of very buggy behaviour in IE<=8 (asp.net) 
+        if(obj.attachEvent) { 
             if (type=="DOMContentLoaded") type="load"; // IE unterstützt kein DOMContentLoaded
-            // obj["e"+type+fn] = fn;
-            // obj[type+fn] = function() { obj["e"+type+fn]( window.event ); }
-            // return obj.attachEvent( "on"+type, obj[type+fn] );
         } 
-        //if(obj["on"+type]) return; // IE8: very special case to avoid overriding handleF5key
-        obj["on"+type] = function(e) {
-            e = e || window.event;  
-            e.cancelBubble = bub;
-            return fn(e); 
-        };
+        
+        if(!_IE8EventListeners[type]) _IE8EventListeners[type] = new Oberserverable();
+        _IE8EventListeners[type].attach("e"+obj+fn, fn);
+        if(!obj["on"+type]) { 
+            obj["on"+type] = function(e) {
+                e = e || window.event;  
+                e.cancelBubble = bub;
+                return _IE8EventListeners[type].notify(e); 
+            };
+        }
     }
     
     window.removeEvent = function (obj, type, fn) {
