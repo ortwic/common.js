@@ -2,7 +2,7 @@
  *                                    *                                      *
  *  File:     debug.js                *   Author:  oc (Ortwin)               *
  *                                    *                                      *
- *  Version:  0.3.9                   *   Date:    2013-07-25                *
+ *  Version:  0.3.10                  *   Date:    2013-07-25                *
  *                                    *                                      *
  *  Module:   global                  *   E-Mail:  ohc84@gmx-topmail.de      *
  *                                    *                                      *
@@ -13,7 +13,7 @@
 \*****************************************************************************/
 
 var println = (function() {
-	var div;
+    var div;
     var IE8 = !!document.attachEvent;
     var config = {
         debug: false,
@@ -81,8 +81,7 @@ var println = (function() {
             fontWeight: "bold" 
         }
     };
-    var alert = window.alert;   
-    
+    var alert = window.alert;    
     var printError = function(e, f, l) { 
         if(typeof e == "string") {
             var file = (f.indexOf('/') > 0) ? f.match(/[\d\w-.]*$/) : f;
@@ -94,18 +93,15 @@ var println = (function() {
             print(e, t);
         }
     };
-    
-	var clear = function(n) { 
+    var clear = function(n) { 
         if(n > 1) {
             while(n <= div.childNodes.length) {
                 div.removeChild(div.childNodes[0]);
             }
         } else { div.innerHTML = ""; }
     };
-    
-    // types of poly: boolean, number, htmlElement
     var print = function(string, poly, timeout) {
-		if(config.debug || poly && poly.tagName) {
+        if(config.debug || poly && poly.tagName) {
             if(poly) {
                 if(typeof poly == "number")
                     clear(poly);
@@ -132,7 +128,7 @@ var println = (function() {
                 setTimeout(function() { if(line.parentNode) div.removeChild(line); }, timeout); 
             }
         }
-	}
+    }
         
     print.config = function(cfg, show) {
         if(typeof cfg === "object") init(cfg, show);
@@ -143,7 +139,7 @@ var println = (function() {
     };
 
     function printObj(object, target, objRefTable) { 
-        objRefTable = objRefTable || {};
+        objRefTable = objRefTable || {}; // IE8?
         var types = {};
         var setNodeClickEvent = function(nodeObj, src, target, visible) {
             // Must force argument to be a local variable or else the closures created will
@@ -257,6 +253,7 @@ var println = (function() {
                     var d = oc.createDiv( { overflow: "hidden", maxHeight: "30px" }, li);
                     // d.style["height"] = oc.getStyle(li, "line-height");
                     // d.style[maxWidth] = window.innerWidth - parseInt(div.style.marginRight) * 4 + "px";
+
                     d[IE8 ? "innerText" : "textContent"] = key + ": " + object[key];
                 } else {
                     print(key + ":&nbsp;" + object[key], li); 
@@ -280,13 +277,13 @@ var println = (function() {
         }
         div.style.display = (config.debug) ? "block" : "none";
         
-		(config.clearOnDblClick) ? oc.addEvent(div, "dblclick", clear) : oc.removeEvent(div, "dblclick", clear);
+        (config.clearOnDblClick) ? addEvent(div, "dblclick", clear) : oc.removeEvent(div, "dblclick", clear);
         
         window.alert = (config.overrideAlert) ? println : window.alert = alert;        
         
         // not supported by ff so use classic approach
-		// (config.printScriptErrors) ? oc.addEvent(window, "error", printError) : oc.removeEvent(window, "error", printError); 
-		window.onerror = (config.printScriptErrors) ? printError : null;
+        // (config.printScriptErrors) ? addEvent(window, "error", printError) : oc.removeEvent(window, "error", printError); 
+        window.onerror = (config.printScriptErrors) ? printError : null;
         
         if(show) {
             print("current config:");
@@ -294,10 +291,10 @@ var println = (function() {
         }
     }
     
-	oc.addEvent(this, "DOMContentLoaded", function(e) {		
-		div = oc.createDiv(style.div, document.getElementsByTagName("body")[0]);
+    addEvent(this, "DOMContentLoaded", function(e) {        
+        div = oc.createDiv(style.div, document.getElementsByTagName("body")[0]);
         init({});
-	});
+    });
     
-	return print;
+    return print;
 })();

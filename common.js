@@ -2,7 +2,7 @@
  *                                    *                                      *
  *  File:     common.js               *   Author:  oc (Ortwin Cars.)         *
  *                                    *                                      *
- *  Version:  0.2.8                   *   Date:    2013-07-25                *
+ *  Version:  0.2.8b                  *   Date:    2013-07-25                *
  *                                    *                                      *
  *  Module:   global                  *   E-Mail:  ohc84@gmx-topmail.de      *
  *                                    *                                      *
@@ -13,12 +13,10 @@
 \*****************************************************************************/
 
 var oc = function() {
-    // http://jszen.blogspot.com/2005/03/cross-domain-security-woes.html 
-    var _removeIEBorders = false; // für VE-HTML5 Projekt notwendig
+    var _removeIEBorders = false; // used for VE-HTML5 project (lots of nested iframes)
     var _keys = [];
-    var _hashMap = {}; // um Properties auszulesen
-    var _id;
-    var _mousePos = { src: window, x: 0, y: 0 };
+    var _hashMap = {};  // get properties from location.search
+    var _mousePos = { e: window, clientX: 0, clientY: 0 }; // might be a little displaced
     var _print = function(msg) { alert(msg); }; // fallback, should be overwritten
     var _flags = {
         oninit: "init",
@@ -54,10 +52,10 @@ var oc = function() {
     // ------------------------------------------------------------------------
     
     // ====  DOM-Helpers  =====================================================
-    function appendStyle(obj, props) {
+    function appendProps(obj, props) {
         for(var p in props) {
-            if(p in obj.style)
-                obj.style[p] = props[p];
+            if(p in obj) 
+                obj[p] = props[p];
         }
     }
     
@@ -75,7 +73,7 @@ var oc = function() {
             base.appendChild(self);
         }
         if(typeof styleOrClass === "object") {
-            appendStyle(self, styleOrClass);
+            oc.appendStyle(self, styleOrClass);
         } else {
             self.className = styleOrClass;
         }
@@ -84,7 +82,7 @@ var oc = function() {
     }
     // ------------------------------------------------------------------------
     
-    // ====  URI-Search Helpers  ==============================================
+    // ====  location.search Helpers  =========================================
     function getProps(str) {
         var array = str.split('&'); // '?' entfernen
         var parts = array.length;
@@ -109,21 +107,57 @@ var oc = function() {
     }
     // ------------------------------------------------------------------------
     
-    // ====  Event handling  ==================================================    
-    function getNewEventTarget(src) {
-        if(typeof src.EventTarget=="function") {
-            return new src.EventTarget();
-        } else {
-            try {
-                src.parent.test();
-            } catch(e) {
-                _print(e);
+    // ====  Event handling  ==================================================   
+    var EventTarget = function() {  // might be obsolete (--> observer pattern)
+        //http://www.nczonline.net/blog/2010/03/09/custom-events-in-javascript/
+        //Copyright (c) 2010 Nicholas C. Zakas. All rights reserved.
+        //MIT License
+        this._listeners = {};
+    };
+    EventTarget.prototype = {
+        constructor: EventTarget,
+        addListener: function(type, listener){
+            if (typeof this._listeners[type] == "undefined"){
+                this._listeners[type] = [];
+            }
+
+            this._listeners[type].push(listener);
+        },
+        fire: function(event){
+            if (typeof event == "string"){
+                event = { type: event };
+            }
+            if (!event.target){
+                event.target = this;
+            }
+
+            if (!event.type){  //falsy
+                throw new Error("Event object missing 'type' property.");
+            }
+
+            if (this._listeners[event.type] instanceof Array){
+                var listeners = this._listeners[event.type];
+                for (var i=0, len=listeners.length; i < len; i++){
+                    listeners[i].call(this, event);
+                }
+            }
+        },
+        removeListener: function(type, listener){
+            if (this._listeners[type] instanceof Array){
+                var listeners = this._listeners[type];
+                for (var i=0, len=listeners.length; i < len; i++){
+                    if (listeners[i] === listener){
+                        listeners.splice(i, 1);
+                        break;
+                    }
+                }
             }
         }
-    }
-    
+    };
+    // ------------------------------------------------------------------------ 
+    // handling popups and context menus
+    // ------------------------------------------------------------------------    
     function register(id, content) {
-        if(!_id) _id = id.split("_")[0];
         parent.postMessage(_flags.onregister + ";" + id + ";" + content, "*"); 
     }
     
@@ -142,14 +176,13 @@ var oc = function() {
     // ------------------------------------------------------------------------
     
     // ====  Cookies  =========================================================
-    function getCookie(name) {
+    function getCookie(name) {                  // a little outdated cookie api
         var data = new Object();
         var strNum, valAll, keyName, subVal;
         var i = 0;
         var clen = document.cookie.length;
 
-        while (i < clen) // Alle Cookies durchlaufen
-        {
+        while (i < clen) { // Alle Cookies durchlaufen        
             strNum = document.cookie.indexOf (";", i); // "Nummer" des Cookies
             if (strNum == -1) strNum = document.cookie.length; // Es gibt nur ein Cookie
             valAll = unescape(document.cookie.substring(i, strNum)); // name=values auslesen
@@ -159,16 +192,13 @@ var oc = function() {
             i = strNum + 2; // Leerzeichen nach ; überspringen
         }
         
-        if(name)
-        {
+        if(name) {
             if(typeof(data[name])!="undefined")
             {
                 return data[name]; // gefundenes Cookie zurück
             }
             else return 0; // Gesuchtes Cookie nicht gefunden
-        }
-        else 
-        {
+        } else {
             return data; // Alle Cookies zurück
         }
     }
@@ -208,7 +238,7 @@ var oc = function() {
     // ------------------------------------------------------------------------
         
     // ====  misc stuff  ======================================================   
-    function loadScript(scriptname) {  
+    window.loadScript = function(scriptname) {  
         var snode = document.createElement('script');  
         snode.setAttribute('type','text/javascript');  
         snode.setAttribute('src',scriptname);  
@@ -233,31 +263,36 @@ var oc = function() {
     // ====  Improved functionalities  ========================================    
     window.addEvent = function (obj, type, fn, bub) {
         if(obj.addEventListener) {
-            obj.addEventListener(type, fn, bub ? bub : false);
-        } else if(obj.attachEvent) {
-            // IE spezifisch
-            if (type=="DOMContentLoaded") type="load"; // IE unterstützt kein DOMContentLoaded
-            obj["e"+type+fn] = fn;
-            obj[type+fn] = function() { obj["e"+type+fn]( window.event ); }
-            obj.attachEvent( "on"+type, obj[type+fn] );
-        } else {
-            obj["on"+type] = fn;
+            return obj.addEventListener(type, fn, bub ? bub : false);
         }
+        if(obj.attachEvent) { // for IE8 but very buggy behaviour (asp.net) // http://stackoverflow.com/questions/15952943/ie-attachevent-call-returns-true-but-handler-shows-null
+            if (type=="DOMContentLoaded") type="load"; // IE unterstützt kein DOMContentLoaded
+            // obj["e"+type+fn] = fn;
+            // obj[type+fn] = function() { obj["e"+type+fn]( window.event ); }
+            // return obj.attachEvent( "on"+type, obj[type+fn] );
+        } 
+        //if(obj["on"+type]) return; // IE8: very special case to avoid overriding handleF5key
+        obj["on"+type] = function(e) {
+            e = e || window.event;  
+            e.cancelBubble = bub;
+            return fn(e); 
+        };
     }
     
     window.removeEvent = function (obj, type, fn) {
         if (obj.removeEventListener) {
             obj.removeEventListener( type, fn, false );
-        } else if (obj.detachEvent) {
-            obj.detachEvent( "on"+type, obj[type+fn] );
-            obj[type+fn] = null;
-            obj["e"+type+fn] = null;
+        // } else if (obj.detachEvent) {
+            // obj.detachEvent( "on"+type, obj[type+fn] );
+            // obj[type+fn] = null;
+            // obj["e"+type+fn] = null;
         } else {
             obj["on"+type] = null;
         }
     }
     
-    Object.toType = (function toType(global) { // http://javascriptweblog.wordpress.com/2011/08/08/fixing-the-javascript-typeof-operator/#more-2838
+    // http://javascriptweblog.wordpress.com/2011/08/08/fixing-the-javascript-typeof-operator/#more-2838
+    Object.toType = (function toType(global) { 
         return function(obj) {
             if (obj === global) {
               return "global";
@@ -277,24 +312,6 @@ var oc = function() {
         
     // ====  Construction  ====================================================
     addEvent(window, "DOMContentLoaded", function(e) {
-        _id = Common.getPropsFromSearch(location.search)["id"];
-        
-        if(_id) {
-            // for(var k of ["mousedown", "mouseup", "mousemove"]) { // only firefox
-            for(var k in { mousedown:0, mouseup:0, mousemove:0 }) {
-                (function(key) {
-                    addEvent(window, key, function(e) {
-                        e = e || window.event;
-                        _mousePos.x = e.clientX;
-                        _mousePos.y = e.clientY;
-                        if(_id) {
-                            parent.postMessage(_flags["on" + key] + ";" + _id + ";" + e.clientX + "," + e.clientY, "*"); 
-                        }
-                    });    
-                })(k);
-            }
-        }
-        
         /* **** Init forms (IE only) **** */    
         if(_removeIEBorders && this.attachEvent) {
             (function(frames) {      
@@ -325,9 +342,13 @@ var oc = function() {
     return {
         createDiv: function newDiv(styleOrClass, base, self) { return newElement("div", styleOrClass, base, self); },
         createElement: newElement,
-        appendStyle: appendStyle,
+        appendProps: appendProps,
+        appendStyle: function appendStyle(src, props) { appendProps(src.style, props); },
         getStyle: getStyle,
+        
         Oberserverable: Oberserverable,
+        EventTarget: EventTarget, // deprecated, only used in VE-HTML5 project
+        MousePos: _mousePos,
         
         getPropsFromSearch: function(str) { return getProps(str.substring(1,str.length)); },
         getProps: getProps,
@@ -335,9 +356,8 @@ var oc = function() {
         
         addEvent: addEvent,
         removeEvent: removeEvent,
-        getNewEventTarget: getNewEventTarget,
+        getNewEventTarget: function(src) { if(typeof src.oc.EventTarget=="function") return new src.oc.EventTarget(); }, // deprecated, only used in VE-HTML5 project
         
-        docId: _id,
         msg: _flags, 
         registerObject: register,
         showObject: show,
@@ -345,11 +365,10 @@ var oc = function() {
         unregisterObject: unregister,
         
         getCookie: getCookie,
-        setCookie: setCookie,
-        window: _mousePos
+        setCookie: setCookie
     }
 }();
 
-var Common = oc;
+var Common = oc; // deprecated, only used in VE-HTML5 project
 
     
