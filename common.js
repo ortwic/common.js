@@ -14,10 +14,9 @@
 
 var oc = function() {
     var _removeIEBorders = false; // used for VE-HTML5 project (lots of nested iframes)
-    var _IE8EventListeners = {};
     var _keys = [];
     var _hashMap = {};  // get properties from location.search
-    var _mousePos = { e: window, clientX: 0, clientY: 0 }; // might be a little displaced
+    var _mousePos = { source: window, clientX: 0, clientY: 0 }; 
     var _print = function(msg) { alert(msg); }; // fallback, should be overwritten
     var _flags = {
         oninit: "init",
@@ -107,55 +106,7 @@ var oc = function() {
     // ------------------------------------------------------------------------
     
     // ====  Event handling  ==================================================   
-    var EventTarget = function() {  // might be obsolete (--> observer pattern)
-        //http://www.nczonline.net/blog/2010/03/09/custom-events-in-javascript/
-        //Copyright (c) 2010 Nicholas C. Zakas. All rights reserved.
-        //MIT License
-        this._listeners = {};
-    };
-    EventTarget.prototype = {
-        constructor: EventTarget,
-        addListener: function(type, listener){
-            if (typeof this._listeners[type] == "undefined"){
-                this._listeners[type] = [];
-            }
-
-            this._listeners[type].push(listener);
-        },
-        fire: function(event){
-            if (typeof event == "string"){
-                event = { type: event };
-            }
-            if (!event.target){
-                event.target = this;
-            }
-
-            if (!event.type){  //falsy
-                throw new Error("Event object missing 'type' property.");
-            }
-
-            if (this._listeners[event.type] instanceof Array){
-                var listeners = this._listeners[event.type];
-                for (var i=0, len=listeners.length; i < len; i++){
-                    listeners[i].call(this, event);
-                }
-            }
-        },
-        removeListener: function(type, listener){
-            if (this._listeners[type] instanceof Array){
-                var listeners = this._listeners[type];
-                for (var i=0, len=listeners.length; i < len; i++){
-                    if (listeners[i] === listener){
-                        listeners.splice(i, 1);
-                        break;
-                    }
-                }
-            }
-        }
-    };
-    // ------------------------------------------------------------------------ 
     // handling popups and context menus
-    // ------------------------------------------------------------------------    
     function register(id, content) {
         parent.postMessage(_flags.onregister + ";" + id + ";" + content, "*"); 
     }
@@ -181,24 +132,24 @@ var oc = function() {
         var i = 0;
         var clen = document.cookie.length;
 
-        while (i < clen) { // Alle Cookies durchlaufen        
-            strNum = document.cookie.indexOf (";", i); // "Nummer" des Cookies
-            if (strNum == -1) strNum = document.cookie.length; // Es gibt nur ein Cookie
+        while (i < clen) {                          // Alle Cookies durchlaufen        
+            strNum = document.cookie.indexOf (";", i);  // "Nummer" des Cookies
+            if (strNum == -1) strNum = document.cookie.length;  // Nur 1 Cookie
             valAll = unescape(document.cookie.substring(i, strNum)); // name=values auslesen
             keyName = valAll.substring(0, valAll.indexOf("=", 0)); // Name des Cookie zurück
             subVal = valAll.substring(valAll.indexOf("=") + 1); // ab '=' Werte zurück
             data[keyName] = (data[keyName]) ? data[keyName] + subVal : subVal;
-            i = strNum + 2; // Leerzeichen nach ; überspringen
+            i = strNum + 2;                  // Leerzeichen nach ; überspringen
         }
         
         if(name) {
             if(typeof(data[name])!="undefined")
             {
-                return data[name]; // gefundenes Cookie zurück
+                return data[name];                  // gefundenes Cookie zurück
             }
-            else return 0; // Gesuchtes Cookie nicht gefunden
+            else return 0;                   // Gesuchtes Cookie nicht gefunden
         } else {
-            return data; // Alle Cookies zurück
+            return data;                                 // Alle Cookies zurück
         }
     }
 
@@ -208,13 +159,13 @@ var oc = function() {
         
         if(!path) path = '/';
         
-        if(ttl>0) { // Speichere Cookie
+        if(ttl>0) {                                         // Speichere Cookie
             value = escape(value);
             expire.setTime(ttl*1000);
             string2Sav=name + "=" + value + "; expires=" + expire.toGMTString() + ";path=" + path;
             oldCki=getCookie(name);
 
-            if(oldCki!=0) { // Wenn Cookie schon existiert
+            if(oldCki!=0) {                      // Wenn Cookie schon existiert
                 diff = value.length - escape(oldCki).length; // Differenz zwischen Neuem und Alten Inhalt
                 if(document.cookie.length + diff > 4096) { // Gesamtgröße darf nicht größer 4kB sein!
                     return "Zu wenig Speicher frei um &Auml;nderungen zu speichern!";
@@ -228,7 +179,7 @@ var oc = function() {
                 return 0;
             }
             return 1;              
-        } else { // Lösche Cookie
+        } else {                                               // Lösche Cookie
             expire.setTime(0);
             document.cookie = name + "=''; expires=" + expire.toGMTString() + ";path=" + path;
             return 1;
@@ -237,19 +188,19 @@ var oc = function() {
     // ------------------------------------------------------------------------
         
     // ====  misc stuff  ======================================================   
-    window.loadScript = function(scriptname) {  
-        var snode = document.createElement('script');  
-        snode.setAttribute('type','text/javascript');  
-        snode.setAttribute('src',scriptname);  
-        document.getElementsByTagName('head')[0].appendChild(snode);  
+    var loadScript = function(scriptname) {  
+        var node = document.createElement('script');  
+        node.setAttribute('type', 'text/javascript');  
+        node.setAttribute('src', scriptname);  
+        document.getElementsByTagName('head')[0].appendChild(node);  
     }
     
-    window.loadCSS = function(scriptname) {  
-        var snode = document.createElement('link');  
-        snode.setAttribute('type','text/css');  
-        snode.setAttribute('href',scriptname);  
-        snode.setAttribute('rel','stylesheet');  
-        document.getElementsByTagName('head')[0].appendChild(snode);  
+    var loadCSS = function(scriptname) {  
+        var node = document.createElement('link');  
+        node.setAttribute('type', 'text/css');  
+        node.setAttribute('href', scriptname);  
+        node.setAttribute('rel', 'stylesheet');  
+        document.getElementsByTagName('head')[0].appendChild(node);  
     }
     
     if(![].forEach) {
@@ -264,32 +215,25 @@ var oc = function() {
         if(obj.addEventListener) {
             return obj.addEventListener(type, fn, bub ? bub : false);
         }
+        // no use of attachEvent() 'cause of very buggy behaviour in IE<=8
+        if(obj.attachEvent && type == "DOMContentLoaded") type = "load";
         
-        // no use of attachEvent() 'cause of very buggy behaviour in IE<=8 (asp.net) 
-        if(obj.attachEvent) { 
-            if (type=="DOMContentLoaded") type="load"; // IE unterstützt kein DOMContentLoaded
-        } 
-        
-        if(!_IE8EventListeners[type]) _IE8EventListeners[type] = new Oberserverable();
-        _IE8EventListeners[type].attach("e"+obj+fn, fn);
+        if(!obj["e"+type]) obj["e"+type] = new Oberserverable();
+        obj["e"+type].attach("e"+obj+fn, fn);
         if(!obj["on"+type]) { 
             obj["on"+type] = function(e) {
                 e = e || window.event;  
                 e.cancelBubble = bub;
-                return _IE8EventListeners[type].notify(e); 
+                return obj["e"+type].notify(e); 
             };
         }
     }
     
     window.removeEvent = function (obj, type, fn) {
         if (obj.removeEventListener) {
-            obj.removeEventListener( type, fn, false );
-        // } else if (obj.detachEvent) {
-            // obj.detachEvent( "on"+type, obj[type+fn] );
-            // obj[type+fn] = null;
-            // obj["e"+type+fn] = null;
-        } else {
-            obj["on"+type] = null;
+            obj.removeEventListener(type, fn, false);
+        } else if(obj["e"+type]) {
+            obj["e"+type].detach("e"+obj+fn, fn);
         }
     }
     
@@ -314,28 +258,22 @@ var oc = function() {
         
     // ====  Construction  ====================================================
     addEvent(window, "DOMContentLoaded", function(e) {
-        /* **** Init forms (IE only) **** */    
-        if(_removeIEBorders && this.attachEvent) {
-            (function(frames) {      
-                if(document.getElementsByTagName("iframe")[0]) {
-                    if(!frames) frames = document.getElementsByTagName("iframe");
-                    
-                    // IE Weiche
-                    if(typeof document.getElementsByTagName("iframe")[0].getAttribute("FRAMEBORDER") != "undefined") {   
-                        // Alle Borders der IFrames entfernen                
-                        for(i=0; i<frames.length; ++i)
-                        {
-                            frames[i].setAttribute("FRAMEBORDER","0");
-                            frames[i].setAttribute("ALLOWTRANSPARENCY","true");
-                            // Neuzeichnung anstoßen
-                            frames[i].parentNode.innerHTML = frames[i].parentNode.innerHTML;
-                        }
-                    }
+        // probably deprecated, only used in VE-HTML5 project
+        if(_removeIEBorders && this.attachEvent && document.getElementsByTagName("iframe")[0]) { 
+            var ifs = document.getElementsByTagName("iframe");            
+            if(typeof document.getElementsByTagName("iframe")[0].getAttribute("FRAMEBORDER") != "undefined") {   
+                // remove all borders from IFrames                
+                for(i=0; i<ifs.length; ++i) {
+                    ifs[i].setAttribute("FRAMEBORDER","0");
+                    ifs[i].setAttribute("ALLOWTRANSPARENCY","true");
+                    // forcing redraw
+                    ifs[i].parentNode.innerHTML = ifs[i].parentNode.innerHTML;
                 }
-            })();
+            }
         }
         
-        parent.postMessage(_flags.onInit + ";", "*"); 
+        // probably deprecated, only used in VE-HTML5 project
+        if(parent) parent.postMessage(_flags.onInit + ";", "*"); 
     });    
     // ------------------------------------------------------------------------
             
@@ -349,7 +287,6 @@ var oc = function() {
         getStyle: getStyle,
         
         Oberserverable: Oberserverable,
-        EventTarget: EventTarget, // deprecated, only used in VE-HTML5 project
         MousePos: _mousePos,
         
         getPropsFromSearch: function(str) { return getProps(str.substring(1,str.length)); },
@@ -358,7 +295,6 @@ var oc = function() {
         
         addEvent: addEvent,
         removeEvent: removeEvent,
-        getNewEventTarget: function(src) { if(typeof src.oc.EventTarget=="function") return new src.oc.EventTarget(); }, // deprecated, only used in VE-HTML5 project
         
         msg: _flags, 
         registerObject: register,
@@ -367,7 +303,9 @@ var oc = function() {
         unregisterObject: unregister,
         
         getCookie: getCookie,
-        setCookie: setCookie
+        setCookie: setCookie,
+        loadScript: loadScript,
+        loadCSS: loadCSS
     }
 }();
 
