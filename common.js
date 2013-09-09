@@ -2,7 +2,7 @@
  *                                    *                                      *
  *  File:     common.js               *   Author:  oc (Ortwin Cars.)         *
  *                                    *                                      *
- *  Version:  0.2.9                   *   Date:    2013-07-25                *
+ *  Version:  0.2.9c                  *   Date:    2013-07-25                *
  *                                    *                                      *
  *  Module:   global                  *   E-Mail:  ohc84@gmx-topmail.de      *
  *                                    *                                      *
@@ -37,7 +37,7 @@ var oc = function() {
             notify: function (args) { 
                 for(var o in subscribers) { 
                     if(typeof args === "object") { args.target = subscribers[o].src; }
-                    subscribers[o].fn.call(window, args); 
+                    subscribers[o].fn.call(window, args);
                 } 
             },
             count: function () { 
@@ -136,20 +136,20 @@ var oc = function() {
             strNum = document.cookie.indexOf (";", i);  // "Nummer" des Cookies
             if (strNum == -1) strNum = document.cookie.length;  // Nur 1 Cookie
             valAll = unescape(document.cookie.substring(i, strNum)); // name=values auslesen
-            keyName = valAll.substring(0, valAll.indexOf("=", 0)); // Name des Cookie zur�ck
-            subVal = valAll.substring(valAll.indexOf("=") + 1); // ab '=' Werte zur�ck
+            keyName = valAll.substring(0, valAll.indexOf("=", 0)); // Name des Cookie zurueck
+            subVal = valAll.substring(valAll.indexOf("=") + 1); // ab '=' Werte zurueck
             data[keyName] = (data[keyName]) ? data[keyName] + subVal : subVal;
-            i = strNum + 2;                  // Leerzeichen nach ; �berspringen
+            i = strNum + 2;                  // Leerzeichen nach ; Ueberspringen
         }
         
         if(name) {
             if(typeof(data[name])!="undefined")
             {
-                return data[name];                  // gefundenes Cookie zur�ck
+                return data[name];                  // gefundenes Cookie zurueck
             }
             else return 0;                   // Gesuchtes Cookie nicht gefunden
         } else {
-            return data;                                 // Alle Cookies zur�ck
+            return data;                                 // Alle Cookies zurueck
         }
     }
 
@@ -167,19 +167,19 @@ var oc = function() {
 
             if(oldCki!=0) {                      // Wenn Cookie schon existiert
                 diff = value.length - escape(oldCki).length; // Differenz zwischen Neuem und Alten Inhalt
-                if(document.cookie.length + diff > 4096) { // Gesamtgr��e darf nicht gr��er 4kB sein!
+                if(document.cookie.length + diff > 4096) { // Gesamtgroesse darf nicht groesser 4kB sein!
                     return "Zu wenig Speicher frei um &Auml;nderungen zu speichern!";
                 }
-            } else if(document.cookie.length+string2Sav.length > 4096) { // Zu wenig Speicher f�r neues Cookie
+            } else if(document.cookie.length+string2Sav.length > 4096) { // Zu wenig Speicher fuer neues Cookie
                 return "Zu wenig Speicher frei um neues Element zu speichern!";
             }
             document.cookie = name + "=" + value + "; expires=" + expire.toGMTString() + ";path=" + path;
-            if(document.cookie.length < 1) { // Nachtr�gliche Kontrolle, ob Cookie wirklich gespeichert
+            if(document.cookie.length < 1) { // Nachtraegliche Kontrolle, ob Cookie wirklich gespeichert
                 _print("Fehler beim Speichern des Cookies.\nZu viele Daten zum Speichern!");
                 return 0;
             }
             return 1;              
-        } else {                                               // L�sche Cookie
+        } else {                                               // Loesche Cookie
             expire.setTime(0);
             document.cookie = name + "=''; expires=" + expire.toGMTString() + ";path=" + path;
             return 1;
@@ -218,13 +218,17 @@ var oc = function() {
         // no use of attachEvent() 'cause of very buggy behaviour in IE<=8
         if(obj.attachEvent && type == "DOMContentLoaded") type = "load";
         
+        // https://developer.mozilla.org/en-US/docs/Web/API/EventTarget.addEventListener
         if(!obj["e"+type]) obj["e"+type] = new Oberserverable();
         obj["e"+type].attach("e"+obj+fn, fn);
         if(!obj["on"+type]) { 
             obj["on"+type] = function(e) {
                 e = e || window.event;  
                 e.cancelBubble = bub;
-                return obj["e"+type].notify(e); 
+                obj["e"+type].notify(e); 
+                if(typeof e.preventDefault == "function") {
+                    return e.preventDefault();
+                }
             };
         }
     }
