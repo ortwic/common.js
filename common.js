@@ -136,20 +136,20 @@ var oc = function() {
             strNum = document.cookie.indexOf (";", i);  // "Nummer" des Cookies
             if (strNum == -1) strNum = document.cookie.length;  // Nur 1 Cookie
             valAll = unescape(document.cookie.substring(i, strNum)); // name=values auslesen
-            keyName = valAll.substring(0, valAll.indexOf("=", 0)); // Name des Cookie zurück
-            subVal = valAll.substring(valAll.indexOf("=") + 1); // ab '=' Werte zurück
+            keyName = valAll.substring(0, valAll.indexOf("=", 0)); // Name des Cookie zurï¿½ck
+            subVal = valAll.substring(valAll.indexOf("=") + 1); // ab '=' Werte zurï¿½ck
             data[keyName] = (data[keyName]) ? data[keyName] + subVal : subVal;
-            i = strNum + 2;                  // Leerzeichen nach ; überspringen
+            i = strNum + 2;                  // Leerzeichen nach ; ï¿½berspringen
         }
         
         if(name) {
             if(typeof(data[name])!="undefined")
             {
-                return data[name];                  // gefundenes Cookie zurück
+                return data[name];                  // gefundenes Cookie zurï¿½ck
             }
             else return 0;                   // Gesuchtes Cookie nicht gefunden
         } else {
-            return data;                                 // Alle Cookies zurück
+            return data;                                 // Alle Cookies zurï¿½ck
         }
     }
 
@@ -167,19 +167,19 @@ var oc = function() {
 
             if(oldCki!=0) {                      // Wenn Cookie schon existiert
                 diff = value.length - escape(oldCki).length; // Differenz zwischen Neuem und Alten Inhalt
-                if(document.cookie.length + diff > 4096) { // Gesamtgröße darf nicht größer 4kB sein!
+                if(document.cookie.length + diff > 4096) { // Gesamtgrï¿½ï¿½e darf nicht grï¿½ï¿½er 4kB sein!
                     return "Zu wenig Speicher frei um &Auml;nderungen zu speichern!";
                 }
-            } else if(document.cookie.length+string2Sav.length > 4096) { // Zu wenig Speicher für neues Cookie
+            } else if(document.cookie.length+string2Sav.length > 4096) { // Zu wenig Speicher fï¿½r neues Cookie
                 return "Zu wenig Speicher frei um neues Element zu speichern!";
             }
             document.cookie = name + "=" + value + "; expires=" + expire.toGMTString() + ";path=" + path;
-            if(document.cookie.length < 1) { // Nachträgliche Kontrolle, ob Cookie wirklich gespeichert
+            if(document.cookie.length < 1) { // Nachtrï¿½gliche Kontrolle, ob Cookie wirklich gespeichert
                 _print("Fehler beim Speichern des Cookies.\nZu viele Daten zum Speichern!");
                 return 0;
             }
             return 1;              
-        } else {                                               // Lösche Cookie
+        } else {                                               // Lï¿½sche Cookie
             expire.setTime(0);
             document.cookie = name + "=''; expires=" + expire.toGMTString() + ";path=" + path;
             return 1;
@@ -235,6 +235,33 @@ var oc = function() {
         } else if(obj["e"+type]) {
             obj["e"+type].detach("e"+obj+fn, fn);
         }
+    }
+    
+    if (!Array.prototype.indexOf) { // for IE8
+        // adapted from https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/indexOf?redirectlocale=en-US&redirectslug=JavaScript%2FReference%2FGlobal_Objects%2FArray%2FindexOf#Compatibility
+        Array.prototype.indexOf = function (searchElement /*, fromIndex */ ) {
+            'use strict';
+            if (this == null) { throw new TypeError(); }
+            var n, k, t = Object(this), len = t.length >>> 0;
+
+            if (len === 0) return -1;
+            n = 0;
+            if (arguments.length > 1) {
+                n = Number(arguments[1]);
+                if (n != n) { // shortcut for verifying if it's NaN
+                    n = 0;
+                } else if (n != 0 && n != Infinity && n != -Infinity) {
+                    n = (n > 0 || -1) * Math.floor(Math.abs(n));
+                }
+            }
+            if (n >= len) return -1;
+            for (k = n >= 0 ? n : Math.max(len - Math.abs(n), 0); k < len; k++) {
+                if (k in t && t[k] === searchElement) {
+                    return k;
+                }
+            }
+            return -1;
+        };
     }
     
     // http://javascriptweblog.wordpress.com/2011/08/08/fixing-the-javascript-typeof-operator/#more-2838
