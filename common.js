@@ -2,7 +2,7 @@
  *                                    *                                      *
  *  File:     common.js               *   Author:  oc (Ortwin Cars.)         *
  *                                    *                                      *
- *  Version:  0.2.9c                  *   Date:    2013-07-25                *
+ *  Version:  0.2.9d                  *   Date:    2013-07-25                *
  *                                    *                                      *
  *  Module:   global                  *   E-Mail:  ohc84@gmx-topmail.de      *
  *                                    *                                      *
@@ -214,22 +214,23 @@ var oc = function() {
     window.addEvent = function (obj, type, fn, bub) {
         if(obj.addEventListener) {
             return obj.addEventListener(type, fn, bub ? bub : false);
-        }
-        // no use of attachEvent() 'cause of very buggy behaviour in IE<=8
-        if(obj.attachEvent && type == "DOMContentLoaded") type = "load";
-        
-        // https://developer.mozilla.org/en-US/docs/Web/API/EventTarget.addEventListener
-        if(!obj["e"+type]) obj["e"+type] = new Oberserverable();
-        obj["e"+type].attach("e"+obj+fn, fn);
-        if(!obj["on"+type]) { 
-            obj["on"+type] = function(e) {
-                e = e || window.event;  
-                e.cancelBubble = bub;
-                obj["e"+type].notify(e); 
-                if(typeof e.preventDefault == "function") {
-                    return e.preventDefault();
-                }
-            };
+        } else if(obj.attachEvent) {
+            // no use of attachEvent() 'cause of very buggy behaviour in IE<=8
+            if(type == "DOMContentLoaded") type = "load";
+            
+            // https://developer.mozilla.org/en-US/docs/Web/API/EventTarget.addEventListener
+            if(obj["e"+type]) obj["e"+type] = new Oberserverable();
+            obj["e"+type].attach("e"+obj+fn, fn);
+            if(!obj["on"+type]) { 
+                obj["on"+type] = function(e) {
+                    e = e || window.event;  
+                    e.cancelBubble = bub;
+                    obj["e"+type].notify(e); 
+                    if(typeof e.preventDefault == "function") {
+                        return e.preventDefault();
+                    }
+                };
+            }
         }
     }
     
@@ -341,5 +342,3 @@ var oc = function() {
 }();
 
 var Common = oc; // deprecated, only used in VE-HTML5 project
-
-    
