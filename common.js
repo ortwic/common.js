@@ -2,7 +2,7 @@
  *                                    *                                      *
  *  File:     common.js               *   Author:  oc (Ortwin Cars.)         *
  *                                    *                                      *
- *  Version:  0.2.9d                  *   Date:    2013-07-25                *
+ *  Version:  0.3.0                   *   Date:    2013-09-12                *
  *                                    *                                      *
  *  Module:   global                  *   E-Mail:  ohc84@gmx-topmail.de      *
  *                                    *                                      *
@@ -14,19 +14,6 @@
 
 var oc = function() {
     var _removeIEBorders = false; // used for VE-HTML5 project (lots of nested iframes)
-    var _keys = [];
-    var _hashMap = {};  // get properties from location.search
-    var _mousePos = { source: window, clientX: 0, clientY: 0 }; 
-    var _print = function(msg) { alert(msg); }; // fallback, should be overwritten
-    var _flags = {
-        oninit: "init",
-        onshow: "show",
-        onhide: "hide",
-        onregister: "register",
-        onmousedown: "mousedown",
-        onmousemove: "mousemove",
-        onmouseup: "mouseup"
-    };
     
     // ====  Usefull Patterns  ================================================
     var Oberserverable = function() {
@@ -52,77 +39,129 @@ var oc = function() {
     // ------------------------------------------------------------------------
     
     // ====  DOM-Helpers  =====================================================
-    function appendProps(obj, props) {
-        for(var p in props) {
-            if(p in obj) 
-                obj[p] = props[p];
-        }
-    }
-    
-    function getStyle(obj, prop) {
-        if (obj.currentStyle)
-            return obj.currentStyle[prop];
-        else if (window.getComputedStyle)
-            return document.defaultView.getComputedStyle(obj, null).getPropertyValue(prop);
-    }
-        
-    function newElement(name, styleOrClass, base, self) {
-        if(!base) base = document.getElementsByTagName("body")[0];
-        if(!self) {
-            self = document.createElement(name);
-            base.appendChild(self);
-        }
-        if(typeof styleOrClass === "object") {
-            oc.appendStyle(self, styleOrClass);
-        } else {
-            self.className = styleOrClass;
+    var DOM_modul = (function() {        
+        function appendStyle(src, props) { appendProps(src.style, props); }
+        function appendProps(obj, props) {
+            for(var p in props) {
+                if(p in obj) 
+                    obj[p] = props[p];
+            }
         }
         
-        return self;
-    }
+        function getStyle(obj, prop) {
+            if (obj.currentStyle)
+                return obj.currentStyle[prop];
+            else if (window.getComputedStyle)
+                return document.defaultView.getComputedStyle(obj, null).getPropertyValue(prop);
+        }
+            
+        function newElement(name, styleOrClass, base, self) {
+            if(!base) base = document.getElementsByTagName("body")[0];
+            if(!self) {
+                self = document.createElement(name);
+                base.appendChild(self);
+            }
+            if(typeof styleOrClass === "object") {
+                appendStyle(self, styleOrClass);
+            } else {
+                self.className = styleOrClass;
+            }
+            
+            return self;
+        }
+        
+        // ---  misc stuff  ---------------------------------------------------   
+        var loadScript = function(scriptname) {  
+            var node = document.createElement('script');  
+            node.setAttribute('type', 'text/javascript');  
+            node.setAttribute('src', scriptname);  
+            document.getElementsByTagName('head')[0].appendChild(node);  
+        };
+        
+        var loadCSS = function(scriptname) {  
+            var node = document.createElement('link');  
+            node.setAttribute('type', 'text/css');  
+            node.setAttribute('href', scriptname);  
+            node.setAttribute('rel', 'stylesheet');  
+            document.getElementsByTagName('head')[0].appendChild(node);  
+        };
+        
+        // --------------------------------------------------------------------
+        return {
+            createDiv: function newDiv(styleOrClass, base, self) { return newElement("div", styleOrClass, base, self); },
+            createElement: newElement,
+            appendProps: appendProps,
+            appendStyle: appendStyle,
+            getStyle: getStyle,
+            loadScript: loadScript,
+            loadCSS: loadCSS
+        };
+    })();
     // ------------------------------------------------------------------------
     
     // ====  location.search Helpers  =========================================
-    function getProps(str) {
-        var array = str.split('&'); // '?' entfernen
-        var parts = array.length;
-        
-        for(var i=0; i<parts; ++i) {
-            var eq = array[i].indexOf('=');
-            _keys[i] = array[i].substring(0,eq);
-            var val = array[i].substring(eq+1,array[i].length);
+    var LSH_modul = (function() {
+        var keys = [];
+        var values = {};  // get properties from location.search
+        function getProps(str) {
+            var array = str.split('&'); // '?' entfernen
             
-            _hashMap[_keys[i]] = val;
+            for(var i = 0; i < array.length; ++i) {
+                var eq = array[i].indexOf('=');
+                keys[i] = array[i].substring(0, eq);
+                values[keys[i]] = array[i].substring(eq + 1, array[i].length);
+            }
+            
+            return values;
         }
-        
-        return _hashMap;
-    }
 
-    function getKeysFromSearch() {
-        if(_hashMap) {
-            return _keys;
-        }
-    }
+        return {
+            getProps: getProps,
+            getPropsFromSearch: function(str) { return getProps(str.substring(1,str.length)); },
+            getKeysFromSearch: function() { if(values) return keys; }
+        };
+    })();
     // ------------------------------------------------------------------------
     
     // ====  Event handling  ==================================================   
-    // handling popups and context menus
-    function register(id, content) {
-        parent.postMessage(_flags.onregister + ";" + id + ";" + content, "*"); 
-    }
-    
-    function show(id, center) {
-        center = !center ? _mousePos.clientX + "," + _mousePos.clientY : "";
-        parent.postMessage(_flags.onshow + ";" + id + ";" + center, "*"); 
-    }
-    
-    function hide(id) {
-        parent.postMessage(_flags.onhide, "*"); 
-    }
-    
-    function unregister(id) {
-        parent.postMessage(_flags.onregister + ";" + id, "*"); 
-    }
+    var XFC_modul = (function() {
+        var mousePos = { source: window, clientX: 0, clientY: 0 }; 
+        var events = {
+            oninit: "init",
+            onshow: "show",
+            onhide: "hide",
+            onregister: "register",
+            onmousedown: "mousedown",
+            onmousemove: "mousemove",
+            onmouseup: "mouseup"
+        };
+        // handling popups and context menus
+        function register(id, content) {
+            parent.postMessage(events.onregister + ";" + id + ";" + content, "*"); 
+        }
+        
+        function show(id, center) {
+            center = !center ? mousePos.clientX + "," + mousePos.clientY : "";
+            parent.postMessage(events.onshow + ";" + id + ";" + center, "*"); 
+        }
+        
+        function hide(id) {
+            parent.postMessage(events.onhide, "*"); 
+        }
+        
+        function unregister(id) {
+            parent.postMessage(events.onregister + ";" + id, "*"); 
+        }
+        
+        return {
+            MousePos: mousePos,
+            Messages: events, 
+            registerObject: register,
+            showObject: show,
+            hideObject: hide,
+            unregisterObject: unregister,
+        };
+    })();
     // ------------------------------------------------------------------------
     
     // ====  Cookies  =========================================================
@@ -175,7 +214,7 @@ var oc = function() {
             }
             document.cookie = name + "=" + value + "; expires=" + expire.toGMTString() + ";path=" + path;
             if(document.cookie.length < 1) { // Nachtraegliche Kontrolle, ob Cookie wirklich gespeichert
-                _print("Fehler beim Speichern des Cookies.\nZu viele Daten zum Speichern!");
+                console.log("Fehler beim Speichern des Cookies.\nZu viele Daten zum Speichern!");
                 return 0;
             }
             return 1;              
@@ -186,22 +225,6 @@ var oc = function() {
         }
     } 
     // ------------------------------------------------------------------------
-        
-    // ====  misc stuff  ======================================================   
-    var loadScript = function(scriptname) {  
-        var node = document.createElement('script');  
-        node.setAttribute('type', 'text/javascript');  
-        node.setAttribute('src', scriptname);  
-        document.getElementsByTagName('head')[0].appendChild(node);  
-    }
-    
-    var loadCSS = function(scriptname) {  
-        var node = document.createElement('link');  
-        node.setAttribute('type', 'text/css');  
-        node.setAttribute('href', scriptname);  
-        node.setAttribute('rel', 'stylesheet');  
-        document.getElementsByTagName('head')[0].appendChild(node);  
-    }
     
     if(![].forEach) {
         Array.prototype.forEach = function(callback) {
@@ -279,6 +302,7 @@ var oc = function() {
         }
     })(this);
     
+    // ----  String extensions  -----------------------------------------------
     String.format = function(string) { 
         var args = arguments; 
         var pattern = RegExp("%([1-" + (arguments.length-1) + "])", "g");
@@ -286,6 +310,16 @@ var oc = function() {
             return args[index]; 
         }); 
     }; 
+    String.prototype.capitalize = function(){ 
+        return this.replace(/(\w)/, function(s) { return s.toUpperCase(); });
+    };
+    String.prototype.toCamel = function(){ 
+        return this.replace(/(\-[a-z])/g, function(s) { return s.toUpperCase().replace('-',''); });
+    };
+    String.prototype.toUnderscore = function(){
+        return this.replace(/([A-Z])/g, function(s) { return "_" + s.toLowerCase(); });
+    };
+    String.prototype.trim = function(){ return this.replace(/^\s+|\s+$/g, ""); };
     // ------------------------------------------------------------------------
         
     // ====  Construction  ====================================================
@@ -304,40 +338,23 @@ var oc = function() {
             }
         }
         
-        // probably deprecated, only used in VE-HTML5 project
-        if(parent) parent.postMessage(_flags.onInit + ";", "*"); 
+        // fwd XFC messages
+        if(parent) parent.postMessage(XFC_modul.Messages.onInit + ";", "*"); 
     });    
     // ------------------------------------------------------------------------
-            
+        
     // public methods and properties wrapped in a return 
     // statement and using the object literal
     return {
-        createDiv: function newDiv(styleOrClass, base, self) { return newElement("div", styleOrClass, base, self); },
-        createElement: newElement,
-        appendProps: appendProps,
-        appendStyle: function appendStyle(src, props) { appendProps(src.style, props); },
-        getStyle: getStyle,
+        dom: DOM_modul, 
+        lsh: LSH_modul, // location.search helpers
+        xfc: XFC_modul, // cross frame communication
+        MousePos: XFC_modul.MousePos,
         
         Oberserverable: Oberserverable,
-        MousePos: _mousePos,
-        
-        getPropsFromSearch: function(str) { return getProps(str.substring(1,str.length)); },
-        getProps: getProps,
-        getKeysFromSearch: getKeysFromSearch,
-        
-        addEvent: addEvent,
-        removeEvent: removeEvent,
-        
-        msg: _flags, 
-        registerObject: register,
-        showObject: show,
-        hideObject: hide,
-        unregisterObject: unregister,
-        
+                
         getCookie: getCookie,
-        setCookie: setCookie,
-        loadScript: loadScript,
-        loadCSS: loadCSS
+        setCookie: setCookie
     }
 }();
 

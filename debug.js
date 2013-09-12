@@ -2,7 +2,7 @@
  *                                    *                                      *
  *  File:     debug.js                *   Author:  oc (Ortwin)               *
  *                                    *                                      *
- *  Version:  0.3.10                  *   Date:    2013-07-25                *
+ *  Version:  0.3.11                  *   Date:    2013-09-12                *
  *                                    *                                      *
  *  Module:   global                  *   E-Mail:  ohc84@gmx-topmail.de      *
  *                                    *                                      *
@@ -85,11 +85,11 @@ var println = (function() {
     var printError = function(e, f, l) { 
         if(typeof e == "string") {
             var file = (f.indexOf('/') > 0) ? f.match(/[\d\w-.]*$/) : f;
-            var err = oc.createDiv(style.errStyle, div).innerHTML = e + "<br>";
+            var err = oc.dom.createDiv(style.errStyle, div).innerHTML = e + "<br>";
             if(file) err.innerHTML += "Line " + l + " in " + file;
         } else {
             var t = (typeof f == "object" && f.tagName) ? f : div;
-            oc.createDiv(style.errStyle, t).innerHTML = e.name;
+            oc.dom.createDiv(style.errStyle, t).innerHTML = e.name;
             print(e, t);
         }
     };
@@ -116,9 +116,9 @@ var println = (function() {
                 print(string.toString().match(/ .*\(.*?\)/).toString(), poly);
             } else {
                 if(poly && poly.tagName) {
-                    line = oc.createElement("span", {}, poly);
+                    line = oc.dom.createElement("span", {}, poly);
                 } else {
-                    line = oc.createDiv({}, div);
+                    line = oc.dom.createDiv({}, div);
                 }
                 line.innerHTML = string;
                 // div.scrollTop = div.scrollHeight;
@@ -135,8 +135,17 @@ var println = (function() {
     };
     
     print.style = function(style) {
-        if(typeof style === "object") oc.appendStyle(div, style); 
+        if(typeof style === "object") oc.dom.appendStyle(div, style); 
     };
+    
+    function getProto(obj) {
+        try {
+            return obj.__proto__;
+        } catch(e) {
+            print(e);
+        }
+        return "?";
+    }
 
     function printObj(object, target, objRefTable) { 
         objRefTable = objRefTable || {}; // IE8?
@@ -145,7 +154,7 @@ var println = (function() {
             // Must force argument to be a local variable or else the closures created will
             // all refer to the same argument variable. One reason for this function.
             var node;
-            var indicator = oc.createElement("span", { paddingRight: "4px" }, nodeObj);
+            var indicator = oc.dom.createElement("span", { paddingRight: "4px" }, nodeObj);
             if(visible) {
                 src.style.display = "block"; 
                 indicator.innerHTML = "-";
@@ -179,13 +188,13 @@ var println = (function() {
             if(!target || !target.tagName) return;
             addEvent(nodeObj, "mouseover", function(e) { 
                 if(target && target.id) clearTimeout(target.id);
-                oc.appendStyle(target, style.aObjRefOverStyle);
+                oc.dom.appendStyle(target, style.aObjRefOverStyle);
                 if(e.preventDefault) e.preventDefault(); 
                 return false;
             });
             addEvent(nodeObj, "mouseout", function(e) { 
-                // oc.appendStyle(target, style.aObjRefOutStyle);
-                target.id = setTimeout(function(e) { oc.appendStyle(target, style.aObjRefOutStyle); target.id = 0; }, 1000);
+                // oc.dom.appendStyle(target, style.aObjRefOutStyle);
+                target.id = setTimeout(function(e) { oc.dom.appendStyle(target, style.aObjRefOutStyle); target.id = 0; }, 1000);
                 if(e.preventDefault) e.preventDefault(); 
                 return false;
             });
@@ -197,13 +206,13 @@ var println = (function() {
         };
         
         // print objects, that are marked as non-iterable like Math, JSON... 
-        if(Object.keys && !Object.keys(object).length && Object.toType(object.__proto__) == "object") { 
+        if(Object.keys && !Object.keys(object).length && Object.toType(getProto(object)) == "object") { 
             var wrapObj = {};
             Object.getOwnPropertyNames(object).forEach(function(key) { wrapObj[key] = object[key]; });
             object = wrapObj;
         }
         
-        var list = oc.createElement("ul", style.ulStyle, target || div);
+        var list = oc.dom.createElement("ul", style.ulStyle, target || div);
         list.style.display = "block";
         
         for(var key in object) {
@@ -211,15 +220,15 @@ var println = (function() {
             
             // if group doesn't exist create a new one
             if(!types[type]) {
-                var li = oc.createElement("li", style.liStyle, list);
-                var a = oc.createElement("a", style.aTypeStyle, li);
-                var ul = types[type] = oc.createElement("ul", style.ulStyle, li);
+                var li = oc.dom.createElement("li", style.liStyle, list);
+                var a = oc.dom.createElement("a", style.aTypeStyle, li);
+                var ul = types[type] = oc.dom.createElement("ul", style.ulStyle, li);
                 a.href = "#";
                 setNodeClickEvent(a, types[type], null, config.groupsNotCollapsed);
                 print((config.groupByObjectType) ? {}.toString.call(object[key]) : "[" + type + "]", a);
             } 
             
-            var li = oc.createElement("li", style.liStyle, types[type]);
+            var li = oc.dom.createElement("li", style.liStyle, types[type]);
             if(type == "function") {
                 var args = object[key].toString().match(/\(.*?\)/).toString();
                 if(args.length < 3 && object[key].length > 0) {
@@ -230,7 +239,7 @@ var println = (function() {
             } else if(typeof object[key] == "object" || typeof object[key] == "function") {
                 if(object[key] && type != "null") {
                     var alias = isObjListed(object[key]);
-                    var a = oc.createElement("a", style.aObjStyle, li);
+                    var a = oc.dom.createElement("a", style.aObjStyle, li);
                     if(alias) {
                         a.href = "#" + alias.key;
                         a.style.color = "#A0A0A0";
@@ -241,7 +250,8 @@ var println = (function() {
                         a.name = key;
                         a.href = "#" + key;
                         setNodeClickEvent(a, object[key], li);
-                        print(key + "::" + Object.toType(object[key].__proto__), a);
+                        print(key + "::" + Object.toType(getProto(object[key])), a);
+
                         if(!objRefTable[key]) objRefTable[key] = { ref: object[key], a: a };
                     }
                 } else {
@@ -250,8 +260,8 @@ var println = (function() {
             } else {
                 if(type == "string") {
                     // print(document.body.innerHTML) might produce display errors, so it won't be used in this special case
-                    var d = oc.createDiv( { overflow: "hidden", maxHeight: "30px" }, li);
-                    // d.style["height"] = oc.getStyle(li, "line-height");
+                    var d = oc.dom.createDiv( { overflow: "hidden", maxHeight: "30px" }, li);
+                    // d.style["height"] = oc.dom.getStyle(li, "line-height");
                     // d.style[maxWidth] = window.innerWidth - parseInt(div.style.marginRight) * 4 + "px";
 
                     d[IE8 ? "innerText" : "textContent"] = key + ": " + object[key];
@@ -277,12 +287,12 @@ var println = (function() {
         }
         div.style.display = (config.debug) ? "block" : "none";
         
-        (config.clearOnDblClick) ? addEvent(div, "dblclick", clear) : oc.removeEvent(div, "dblclick", clear);
+        (config.clearOnDblClick) ? addEvent(div, "dblclick", clear) : removeEvent(div, "dblclick", clear);
         
         window.alert = (config.overrideAlert) ? println : window.alert = alert;        
         
         // not supported by ff so use classic approach
-        // (config.printScriptErrors) ? addEvent(window, "error", printError) : oc.removeEvent(window, "error", printError); 
+        // (config.printScriptErrors) ? addEvent(window, "error", printError) : removeEvent(window, "error", printError); 
         window.onerror = (config.printScriptErrors) ? printError : null;
         
         if(show) {
@@ -292,7 +302,7 @@ var println = (function() {
     }
     
     addEvent(this, "DOMContentLoaded", function(e) {        
-        div = oc.createDiv(style.div, document.getElementsByTagName("body")[0]);
+        div = oc.dom.createDiv(style.div, document.getElementsByTagName("body")[0]);
         init({});
     });
     
