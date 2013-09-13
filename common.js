@@ -155,7 +155,7 @@ var oc = function() {
         
         return {
             MousePos: mousePos,
-            Messages: events, 
+            Events: events, 
             registerObject: register,
             showObject: show,
             hideObject: hide,
@@ -338,8 +338,8 @@ var oc = function() {
             }
         }
         
-        // fwd XFC messages
-        if(parent) parent.postMessage(XFC_modul.Messages.onInit + ";", "*"); 
+        // fwd XFC messages as events
+        if(parent) parent.postMessage(XFC_modul.Events.onInit + ";", "*"); 
     });    
     // ------------------------------------------------------------------------
         
