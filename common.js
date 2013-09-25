@@ -2,7 +2,7 @@
  *                                    *                                      *
  *  File:     common.js               *   Author:  oc (Ortwin Cars.)         *
  *                                    *                                      *
- *  Version:  0.3.0                   *   Date:    2013-09-12                *
+ *  Version:  0.3.0b                  *   Date:    2013-09-12                *
  *                                    *                                      *
  *  Module:   global                  *   E-Mail:  ohc84@gmx-topmail.de      *
  *                                    *                                      *
@@ -51,8 +51,9 @@ var oc = function() {
         function getStyle(obj, prop) {
             if (obj.currentStyle)
                 return obj.currentStyle[prop];
-            else if (window.getComputedStyle)
-                return document.defaultView.getComputedStyle(obj, null).getPropertyValue(prop);
+            else if (window.getComputedStyle) // https://developer.mozilla.org/en-US/docs/Web/API/window.getComputedStyle
+                // return document.defaultView.getComputedStyle(obj, null).getPropertyValue(prop);
+                return window.getComputedStyle(obj, null).getPropertyValue(prop);
         }
             
         function newElement(name, styleOrClass, base, self) {
@@ -71,19 +72,21 @@ var oc = function() {
         }
         
         // ---  misc stuff  ---------------------------------------------------   
-        var loadScript = function(scriptname) {  
-            var node = document.createElement('script');  
+        var loadScript = function(scriptname, doc) { 
+            doc = doc || document;
+            var node = doc.createElement('script');  
             node.setAttribute('type', 'text/javascript');  
             node.setAttribute('src', scriptname);  
-            document.getElementsByTagName('head')[0].appendChild(node);  
+            doc.getElementsByTagName('head')[0].appendChild(node);  
         };
         
-        var loadCSS = function(scriptname) {  
-            var node = document.createElement('link');  
+        var loadCSS = function(scriptname, doc) {
+            doc = doc || document;
+            var node = doc.createElement('link');  
             node.setAttribute('type', 'text/css');  
             node.setAttribute('href', scriptname);  
             node.setAttribute('rel', 'stylesheet');  
-            document.getElementsByTagName('head')[0].appendChild(node);  
+            doc.getElementsByTagName('head')[0].appendChild(node);  
         };
         
         // --------------------------------------------------------------------
@@ -103,8 +106,9 @@ var oc = function() {
     var LSH_modul = (function() {
         var keys = [];
         var values = {};  // get properties from location.search
-        function getProps(str) {
-            var array = str.split('&'); // '?' entfernen
+        function getProps(str, sep) {
+            sep = sep || '&';
+            var array = str.split(sep); // '?' entfernen
             
             for(var i = 0; i < array.length; ++i) {
                 var eq = array[i].indexOf('=');
@@ -117,7 +121,7 @@ var oc = function() {
 
         return {
             getProps: getProps,
-            getPropsFromSearch: function(str) { return getProps(str.substring(1,str.length)); },
+            getPropsFromSearch: function(str, sep) { return getProps(str.substring(1,str.length), sep); },
             getKeysFromSearch: function() { if(values) return keys; }
         };
     })();
@@ -163,6 +167,32 @@ var oc = function() {
         };
     })();
     // ------------------------------------------------------------------------
+    
+    var H_modul = (function() {        
+        function traverseIFrames(fn) {
+            if(typeof fn != "function") return;
+            var ifs = document.getElementsByTagName("iframe");              
+            for(var i = 0; i < ifs.length; ++i) {
+                fn(ifs[i]);
+            }
+        }
+        
+        // probably deprecated, only used in VE-HTML5 project
+        function removeIEBorder(iframe) {
+            if(typeof iframe.getAttribute("FRAMEBORDER") != "undefined") { 
+                // remove all borders from IFrames       
+                iframe.setAttribute("FRAMEBORDER","0");
+                iframe.setAttribute("ALLOWTRANSPARENCY","true");
+                // forcing redraw
+                iframe.parentNode.innerHTML = iframe.parentNode.innerHTML;
+            }
+        }
+        
+        return {
+            traverseIFrames: traverseIFrames,
+            removeIEBorders: function() { if(document.attachEvent) traverseIFrames(removeIEBorder); }
+        };
+    })();
     
     // ====  Cookies  =========================================================
     function getCookie(name) {                  // a little outdated cookie api
@@ -236,13 +266,13 @@ var oc = function() {
     // ====  Improved functionalities  ========================================    
     window.addEvent = function (obj, type, fn, bub) {
         if(obj.addEventListener) {
-            return obj.addEventListener(type, fn, bub ? bub : false);
+            obj.addEventListener(type, fn, bub ? bub : false);
         } else if(obj.attachEvent) {
             // no use of attachEvent() 'cause of very buggy behaviour in IE<=8
             if(type == "DOMContentLoaded") type = "load";
             
             // https://developer.mozilla.org/en-US/docs/Web/API/EventTarget.addEventListener
-            if(obj["e"+type]) obj["e"+type] = new Oberserverable();
+            if(!obj["e"+type]) obj["e"+type] = new Oberserverable();
             obj["e"+type].attach("e"+obj+fn, fn);
             if(!obj["on"+type]) { 
                 obj["on"+type] = function(e) {
@@ -302,6 +332,21 @@ var oc = function() {
         }
     })(this);
     
+    Object.clone = function(obj) {
+        if (obj == null || typeof obj != 'object') {        
+            return obj;    
+        }
+        if(typeof JSON != "undefined") {
+            return (JSON.parse(JSON.stringify(obj)));
+        }
+        
+        var temp = obj.constructor(); // give temp the original obj's constructor    
+        for (var key in obj) {        
+            temp[key] = Object.clone(obj[key]);    
+        }     
+        return temp;
+    };
+    
     // ----  String extensions  -----------------------------------------------
     String.format = function(string) { 
         var args = arguments; 
@@ -324,19 +369,10 @@ var oc = function() {
         
     // ====  Construction  ====================================================
     addEvent(window, "DOMContentLoaded", function(e) {
-        // probably deprecated, only used in VE-HTML5 project
-        if(_removeIEBorders && this.attachEvent && document.getElementsByTagName("iframe")[0]) { 
-            var ifs = document.getElementsByTagName("iframe");            
-            if(typeof document.getElementsByTagName("iframe")[0].getAttribute("FRAMEBORDER") != "undefined") {   
-                // remove all borders from IFrames                
-                for(i=0; i<ifs.length; ++i) {
-                    ifs[i].setAttribute("FRAMEBORDER","0");
-                    ifs[i].setAttribute("ALLOWTRANSPARENCY","true");
-                    // forcing redraw
-                    ifs[i].parentNode.innerHTML = ifs[i].parentNode.innerHTML;
-                }
-            }
-        }
+        if(_removeIEBorders) H_modul.removeIEBorders();
+        
+        window.innerWidth = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+        window.innerHeight = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
         
         // fwd XFC messages as events
         if(parent) parent.postMessage(XFC_modul.Events.onInit + ";", "*"); 
@@ -348,14 +384,12 @@ var oc = function() {
     return {
         dom: DOM_modul, 
         lsh: LSH_modul, // location.search helpers
+        was: H_modul,   // hacks/workarounds
         xfc: XFC_modul, // cross frame communication
         MousePos: XFC_modul.MousePos,
         
-        Oberserverable: Oberserverable,
-                
+        Oberserverable: Oberserverable,        
         getCookie: getCookie,
         setCookie: setCookie
     }
 }();
-
-var Common = oc; // deprecated, only used in VE-HTML5 project
