@@ -2,7 +2,7 @@
  *                                    *                                      *
  *  File:     debug.js                *   Author:  oc (Ortwin)               *
  *                                    *                                      *
- *  Version:  0.3.11                  *   Date:    2013-09-12                *
+ *  Version:  0.3.12                  *   Date:    2013-09-12                *
  *                                    *                                      *
  *  Module:   global                  *   E-Mail:  ohc84@gmx-topmail.de      *
  *                                    *                                      *
@@ -82,14 +82,13 @@ var println = (function() {
         }
     };
     var alert = window.alert;    
-    var printError = function(e, f, l) { 
+    var printError = function(e, file, line) { 
         if(typeof e == "string") {
-            var file = (f.indexOf('/') > 0) ? f.match(/[\d\w-.]*$/) : f;
-            var err = oc.dom.createDiv(style.errStyle, div).innerHTML = e + "<br>";
-            if(file) err.innerHTML += "Line " + l + " in " + file;
+            var f = (file.indexOf('/') > 0) ? file.match(/[\d\w-.]*$/) : file;
+            oc.dom.createDiv(style.errStyle, div).textContent = e + (f ? " [" + f + ":" + line + "]" : "");
         } else {
-            var t = (typeof f == "object" && f.tagName) ? f : div;
-            oc.dom.createDiv(style.errStyle, t).innerHTML = e.name;
+            var t = (typeof file == "object" && file.tagName) ? file : div;
+            oc.dom.createDiv(style.errStyle, t).textContent = e.name;
             print(e, t);
         }
     };
