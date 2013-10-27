@@ -2,7 +2,7 @@
  *                                    *                                      *
  *  File:     debug.js                *   Author:  oc (Ortwin)               *
  *                                    *                                      *
- *  Version:  0.3.11                  *   Date:    2013-09-12                *
+ *  Version:  0.3.12b                 *   Date:    2013-09-12                *
  *                                    *                                      *
  *  Module:   global                  *   E-Mail:  ohc84@gmx-topmail.de      *
  *                                    *                                      *
@@ -81,18 +81,8 @@ var println = (function() {
             fontWeight: "bold" 
         }
     };
-    var alert = window.alert;    
-    var printError = function(e, f, l) { 
-        if(typeof e == "string") {
-            var file = (f.indexOf('/') > 0) ? f.match(/[\d\w-.]*$/) : f;
-            var err = oc.dom.createDiv(style.errStyle, div).innerHTML = e + "<br>";
-            if(file) err.innerHTML += "Line " + l + " in " + file;
-        } else {
-            var t = (typeof f == "object" && f.tagName) ? f : div;
-            oc.dom.createDiv(style.errStyle, t).innerHTML = e.name;
-            print(e, t);
-        }
-    };
+    var alert = window.alert;
+    var lastErrMsg = "";
     var clear = function(n) { 
         if(n > 1) {
             while(n <= div.childNodes.length) {
@@ -102,6 +92,7 @@ var println = (function() {
     };
     var print = function(string, poly, timeout) {
         if(config.debug || poly && poly.tagName) {
+            if(this.attachEvent) return (string.toString().indexOf("<")<0) ? console.log(string) : null; // IE8
             if(poly) {
                 if(typeof poly == "number")
                     clear(poly);
@@ -128,8 +119,40 @@ var println = (function() {
                 setTimeout(function() { if(line.parentNode) div.removeChild(line); }, timeout); 
             }
         }
-    }
-        
+    };
+    var printError = function(e) { 
+        // http://stackoverflow.com/questions/591857/how-can-i-get-a-javascript-stack-trace-when-i-throw-an-exception
+        // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error
+        e = e.fileName ? e : new Error(e);
+        var cutHRef = function(f) {
+            return (f.indexOf('/') > 0) ? f.match(/[\d\w-.:]*$/) : f;
+        };
+        var stacktrace = function() { 
+            function st2(f) {
+                return !f ? [] : 
+                    st2(f.caller).concat([f.toString().split('(')[0].substring(9) + '(' + f.arguments.join(',') + ')']);
+                }
+            return st2(arguments.callee.caller);
+        };
+        var file = cutHRef(e.fileName);
+        var msg = (lastErrMsg || e.toString()) + (file ? " [" + file + ":" + e.lineNumber + "," + e.columnNumber + "]" : "");
+        lastErrMsg = "";
+        oc.dom.createDiv(style.errStyle, div).textContent = msg;
+        // if(e.stack && e.stack.indexOf("println")) {
+        if(e.stack) {
+            var stack = [];
+            e.stack.split("@").forEach(function(line) {
+                if(line) {
+                    stack.push(line);
+                    // stack.push(cutHRef(line));
+                }
+            });
+            print(stack);
+        }
+    };
+    
+    print.exc = printError;
+    
     print.config = function(cfg, show) {
         if(typeof cfg === "object") init(cfg, show);
     };
@@ -137,6 +160,8 @@ var println = (function() {
     print.style = function(style) {
         if(typeof style === "object") oc.dom.appendStyle(div, style); 
     };
+    
+    
     
     function getProto(obj) {
         try {
@@ -291,9 +316,14 @@ var println = (function() {
         
         window.alert = (config.overrideAlert) ? println : window.alert = alert;        
         
-        // not supported by ff so use classic approach
-        // (config.printScriptErrors) ? addEvent(window, "error", printError) : removeEvent(window, "error", printError); 
-        window.onerror = (config.printScriptErrors) ? printError : null;
+        if(config.printScriptErrors) {
+            // in FF error msg is outputed via window.onerror only!
+            window.onerror = function(msg) { lastErrMsg = msg; };
+            addEvent(window, "error", printError);
+        } else {
+            window.onerror = null;
+            removeEvent(window, "error", printError); 
+        }
         
         if(show) {
             print("current config:");
