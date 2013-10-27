@@ -327,7 +327,7 @@ var oc = function() {
         // probably deprecated, only used in VE-HTML5 project
         if(_removeIEBorders && this.attachEvent && document.getElementsByTagName("iframe")[0]) { 
             var ifs = document.getElementsByTagName("iframe");            
-            if(typeof document.getElementsByTagName("iframe")[0].getAttribute("FRAMEBORDER") != "undefined") {   
+            if(typeof ifs[0].getAttribute("FRAMEBORDER") != "undefined") {   
                 // remove all borders from IFrames                
                 for(i=0; i<ifs.length; ++i) {
                     ifs[i].setAttribute("FRAMEBORDER","0");
