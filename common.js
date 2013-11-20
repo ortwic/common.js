@@ -2,7 +2,7 @@
  *                                    *                                      *
  *  File:     common.js               *   Author:  oc (Ortwin Cars.)         *
  *                                    *                                      *
- *  Version:  0.3.0                   *   Date:    2013-09-12                *
+ *  Version:  0.3.2                   *   Date:    2013-11-20                *
  *                                    *                                      *
  *  Module:   global                  *   E-Mail:  ohc84@gmx-topmail.de      *
  *                                    *                                      *
@@ -16,11 +16,11 @@ var oc = function() {
     var _removeIEBorders = false; // used for VE-HTML5 project (lots of nested iframes)
     
     // ====  Usefull Patterns  ================================================
-    var Oberserverable = function() {
+    var Observerable = function() {
         var subscribers = {};        
         return {
-            attach: function (obj, fn) { subscribers[obj] = { src: obj, fn: fn }; },
-            detach: function (obj) { delete subscribers[obj]; },    
+            attach: function (obj, fn) { subscribers[obj+fn] = { src: obj, fn: fn }; },
+            detach: function (obj, fn) { delete subscribers[obj+fn]; },    
             notify: function (args) { 
                 for(var o in subscribers) { 
                     if(typeof args === "object") { args.target = subscribers[o].src; }
@@ -39,56 +39,93 @@ var oc = function() {
     // ------------------------------------------------------------------------
     
     // ====  DOM-Helpers  =====================================================
-    var DOM_modul = (function() {        
-        function appendStyle(src, props) { appendProps(src.style, props); }
-        function appendProps(obj, props) {
+    var DOM_modul = (function() {
+        /**
+         * Appends a bunch of properties to an object. Supports nested objects.
+         * @param {object}  source object 
+         * @param {object}  new object
+         * @param {bool}    create new prop if not exists
+         * @return {object} source object
+         */
+        function appendProps(obj, props, create) {
             for(var p in props) {
-                if(p in obj) 
-                    obj[p] = props[p];
+                if(create || p in obj) {
+                    if(typeof props[p] == "object") {
+                        appendProps(obj[p], props[p], create);
+                    } else if(p.indexOf("on") == 0) { // && typeof props[p] == "function") {
+                        // console.log(obj.tagName + ": " + p);
+                        window.addEvent(obj, p.replace(/^on/, ""), props[p]);
+                    } else {
+                        obj[p] = props[p];
+                    }
+                }
             }
+            return obj;
         }
+        function appendStyle(src, props) { appendProps(src.style, props); }
         
         function getStyle(obj, prop) {
             if (obj.currentStyle)
                 return obj.currentStyle[prop];
-            else if (window.getComputedStyle)
-                return document.defaultView.getComputedStyle(obj, null).getPropertyValue(prop);
+            else if (window.getComputedStyle) // https://developer.mozilla.org/en-US/docs/Web/API/window.getComputedStyle
+                // return document.defaultView.getComputedStyle(obj, null).getPropertyValue(prop);
+                return window.getComputedStyle(obj, null).getPropertyValue(prop);
         }
-            
-        function newElement(name, styleOrClass, base, self) {
+           
+        /**
+         * Creates a new DOM-Node.
+         * @param {string}  tagName
+         * @param {object}  object of node properties
+         * @param {object}  parent node. 
+         * @param {string}  text contents of node obj
+         * @return {object} created node object
+         */
+        function newElement(name, props, base, text, self) {
             if(!base) base = document.getElementsByTagName("body")[0];
-            if(!self) {
-                self = document.createElement(name);
-                base.appendChild(self);
-            }
-            if(typeof styleOrClass === "object") {
-                appendStyle(self, styleOrClass);
-            } else {
-                self.className = styleOrClass;
-            }
+            if(!self) self = document.createElement(name);
+            if(text) self.appendChild(document.createTextNode(text));
+            if(typeof props === "object") {
+                appendProps(self, props);
+            } 
+            base.appendChild(self);
             
             return self;
         }
         
+        /**
+         * Creates a new Div-Element.
+         * @param {(object|string)}  object with css-styles or className
+         * @param {object}  parent node. 
+         * @param {string}  text contents of node obj
+         * @return {object} created node object
+         */
+        function newDiv(styleOrClass, base, text, self) { 
+            var props = {};
+            props[typeof styleOrClass == "object" ? "style" : "className"] = styleOrClass;
+            return newElement("div", props, base, text, self); 
+        }
+        
         // ---  misc stuff  ---------------------------------------------------   
-        var loadScript = function(scriptname) {  
-            var node = document.createElement('script');  
+        var loadScript = function(scriptname, doc) { 
+            doc = doc || document;
+            var node = doc.createElement('script');  
             node.setAttribute('type', 'text/javascript');  
             node.setAttribute('src', scriptname);  
-            document.getElementsByTagName('head')[0].appendChild(node);  
+            doc.getElementsByTagName('head')[0].appendChild(node);  
         };
         
-        var loadCSS = function(scriptname) {  
-            var node = document.createElement('link');  
+        var loadCSS = function(scriptname, doc) {
+            doc = doc || document;
+            var node = doc.createElement('link');  
             node.setAttribute('type', 'text/css');  
             node.setAttribute('href', scriptname);  
             node.setAttribute('rel', 'stylesheet');  
-            document.getElementsByTagName('head')[0].appendChild(node);  
+            doc.getElementsByTagName('head')[0].appendChild(node);  
         };
         
         // --------------------------------------------------------------------
         return {
-            createDiv: function newDiv(styleOrClass, base, self) { return newElement("div", styleOrClass, base, self); },
+            createDiv: newDiv,
             createElement: newElement,
             appendProps: appendProps,
             appendStyle: appendStyle,
@@ -103,8 +140,9 @@ var oc = function() {
     var LSH_modul = (function() {
         var keys = [];
         var values = {};  // get properties from location.search
-        function getProps(str) {
-            var array = str.split('&'); // '?' entfernen
+        function getProps(str, sep) {
+            sep = sep || '&';
+            var array = str.split(sep); // '?' entfernen
             
             for(var i = 0; i < array.length; ++i) {
                 var eq = array[i].indexOf('=');
@@ -117,7 +155,7 @@ var oc = function() {
 
         return {
             getProps: getProps,
-            getPropsFromSearch: function(str) { return getProps(str.substring(1,str.length)); },
+            getPropsFromSearch: function(str, sep) { return getProps(str.substring(1,str.length), sep); },
             getKeysFromSearch: function() { if(values) return keys; }
         };
     })();
@@ -155,14 +193,40 @@ var oc = function() {
         
         return {
             MousePos: mousePos,
-            Messages: events, 
+            Events: events, 
             registerObject: register,
             showObject: show,
             hideObject: hide,
-            unregisterObject: unregister,
+            unregisterObject: unregister
         };
     })();
     // ------------------------------------------------------------------------
+    
+    var H_modul = (function() {        
+        function traverseIFrames(fn) {
+            if(typeof fn != "function") return;
+            var ifs = document.getElementsByTagName("iframe");              
+            for(var i = 0; i < ifs.length; ++i) {
+                fn(ifs[i]);
+            }
+        }
+        
+        // probably deprecated, only used in VE-HTML5 project
+        function removeIEBorder(iframe) {
+            if(typeof iframe.getAttribute("FRAMEBORDER") != "undefined") { 
+                // remove all borders from IFrames       
+                iframe.setAttribute("FRAMEBORDER","0");
+                iframe.setAttribute("ALLOWTRANSPARENCY","true");
+                // forcing redraw
+                iframe.parentNode.innerHTML = iframe.parentNode.innerHTML;
+            }
+        }
+        
+        return {
+            traverseIFrames: traverseIFrames,
+            removeIEBorders: function() { if(document.attachEvent) traverseIFrames(removeIEBorder); }
+        };
+    })();
     
     // ====  Cookies  =========================================================
     function getCookie(name) {                  // a little outdated cookie api
@@ -232,28 +296,45 @@ var oc = function() {
         };
     }
     // ------------------------------------------------------------------------
+    
+    function Exception(message, type) {
+        this.message = message;
+        this.type = type || "Exception";
+        this.toString = function() {
+            return this.type + ": " + this.message;
+        };
+    }
+    Exception.prototype = new Error();
+    Exception.prototype.constructor = Exception;
         
     // ====  Improved functionalities  ========================================    
     window.addEvent = function (obj, type, fn, bub) {
-        if(obj.addEventListener) {
-            return obj.addEventListener(type, fn, bub ? bub : false);
-        } else if(obj.attachEvent) {
-            // no use of attachEvent() 'cause of very buggy behaviour in IE<=8
-            if(type == "DOMContentLoaded") type = "load";
-            
-            // https://developer.mozilla.org/en-US/docs/Web/API/EventTarget.addEventListener
-            if(obj["e"+type]) obj["e"+type] = new Oberserverable();
-            obj["e"+type].attach("e"+obj+fn, fn);
-            if(!obj["on"+type]) { 
-                obj["on"+type] = function(e) {
-                    e = e || window.event;  
-                    e.cancelBubble = bub;
-                    obj["e"+type].notify(e); 
-                    if(typeof e.preventDefault == "function") {
-                        return e.preventDefault();
-                    }
-                };
+        // if(!obj || typeof obj != "object") throw new Exception("TypeError: addEvent(obj, type, fn, bub) needs an object!");
+        try {
+            if(obj.addEventListener) {
+                obj.addEventListener(type, fn, bub ? bub : false);
+            } else {
+                // no use of attachEvent() 'cause of very buggy behaviour in IE<=8
+                if(type == "DOMContentLoaded") { // obj.onreadystatechange = function() {};
+                    type = "load";
+                }                
+
+                // https://developer.mozilla.org/en-US/docs/Web/API/EventTarget.addEventListener
+                if(!obj["e"+type]) obj["e"+type] = new Observerable();
+                obj["e"+type].attach(obj, fn);
+                if(!obj["on"+type]) { 
+                    obj["on"+type] = function(e) {
+                        e = e || window.event;  
+                        e.cancelBubble = bub;
+                        obj["e"+type].notify(e); 
+                        if(typeof e.preventDefault == "function") {
+                            return e.preventDefault();
+                        }
+                    };
+                }
             }
+        } catch(e) {
+            throw new Exception(e.stack);
         }
     }
     
@@ -261,7 +342,7 @@ var oc = function() {
         if (obj.removeEventListener) {
             obj.removeEventListener(type, fn, false);
         } else if(obj["e"+type]) {
-            obj["e"+type].detach("e"+obj+fn, fn);
+            obj["e"+type].detach(obj, fn);
         }
     }
     
@@ -302,6 +383,21 @@ var oc = function() {
         }
     })(this);
     
+    Object.clone = function(obj) {
+        if (obj == null || typeof obj != 'object') {        
+            return obj;    
+        }
+        if(typeof JSON != "undefined") {
+            return (JSON.parse(JSON.stringify(obj)));
+        }
+        
+        var temp = obj.constructor(); // give temp the original obj's constructor    
+        for (var key in obj) {        
+            temp[key] = Object.clone(obj[key]);    
+        }     
+        return temp;
+    };
+    
     // ----  String extensions  -----------------------------------------------
     String.format = function(string) { 
         var args = arguments; 
@@ -324,22 +420,13 @@ var oc = function() {
         
     // ====  Construction  ====================================================
     addEvent(window, "DOMContentLoaded", function(e) {
-        // probably deprecated, only used in VE-HTML5 project
-        if(_removeIEBorders && this.attachEvent && document.getElementsByTagName("iframe")[0]) { 
-            var ifs = document.getElementsByTagName("iframe");            
-            if(typeof ifs[0].getAttribute("FRAMEBORDER") != "undefined") {   
-                // remove all borders from IFrames                
-                for(i=0; i<ifs.length; ++i) {
-                    ifs[i].setAttribute("FRAMEBORDER","0");
-                    ifs[i].setAttribute("ALLOWTRANSPARENCY","true");
-                    // forcing redraw
-                    ifs[i].parentNode.innerHTML = ifs[i].parentNode.innerHTML;
-                }
-            }
-        }
+        if(_removeIEBorders) H_modul.removeIEBorders();
         
-        // fwd XFC messages
-        if(parent) parent.postMessage(XFC_modul.Messages.onInit + ";", "*"); 
+        window.innerWidth = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+        window.innerHeight = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
+        
+        // fwd XFC messages as events
+        if(parent) parent.postMessage(XFC_modul.Events.onInit + ";", "*"); 
     });    
     // ------------------------------------------------------------------------
         
@@ -348,14 +435,12 @@ var oc = function() {
     return {
         dom: DOM_modul, 
         lsh: LSH_modul, // location.search helpers
+        was: H_modul,   // hacks/workarounds
         xfc: XFC_modul, // cross frame communication
         MousePos: XFC_modul.MousePos,
         
-        Oberserverable: Oberserverable,
-                
+        Observerable: Observerable,        
         getCookie: getCookie,
         setCookie: setCookie
     }
 }();
-
-var Common = oc; // deprecated, only used in VE-HTML5 project
