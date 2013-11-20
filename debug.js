@@ -2,7 +2,8 @@
  *                                    *                                      *
  *  File:     debug.js                *   Author:  oc (Ortwin)               *
  *                                    *                                      *
- *  Version:  0.3.12b                 *   Date:    2013-09-12                *
+
+ *  Version:  0.3.13c                 *   Date:    2013-11-20                *
  *                                    *                                      *
  *  Module:   global                  *   E-Mail:  ohc84@gmx-topmail.de      *
  *                                    *                                      *
@@ -14,7 +15,7 @@
 
 var println = (function() {
     var div;
-    var IE8 = !!document.attachEvent;
+    var IE8 = !!document.attachEvent && parseInt(/MSIE (\d+)/.exec(navigator.userAgent)[1]) < 9;
     var config = {
         debug: false,
         clearOnDblClick: true,
@@ -24,7 +25,7 @@ var println = (function() {
         groupByObjectType: true
     }
     var style = {
-        div: {
+        div: { 
             position: "fixed",
             top: 0,
             right: 0,
@@ -40,49 +41,72 @@ var println = (function() {
             opacity: 0.9,
             zIndex: Math.pow(2, 31) 
         },
-        ulStyle: {
-            // display: config.groupsNotCollapsed ? "none" : "block", 
-            display: "none", 
-            margin: "0px 0px 0px 12px",
-            padding: "0px",
-            border: "1px solid #E0E0E0",
-            background: IE8 ? "#FFF0C0" : "rgba(255,232,192,0.2)",
-            fontFamily: "monospace",
-            listStyle: "none"
-        },
-        liStyle: {
-            textIndent: "4px",
-            overflow: "hidden"
-        },
-        aTypeStyle: {
-            display: "block",
-            overflow: "hidden",
-            color: "navy",
-            background: "#E0E0E0",
-            borderRadius: "0px",
-            fontWeight: "bold",
-            textDecoration: "none"
-        },
-        aObjStyle: {
-            display: "block",
-            overflow: "hidden",
-            color: "navy",
-            borderRadius: "0px",
-            fontWeight: "bold",
-            textDecoration: "none"
-        },
-        aObjRefOverStyle: { background: "#FFC000" /* borderRight: "14px solid #FFC000" */ },
-        aObjRefOutStyle: { background: "transparent" },
-        errStyle: { 
+
+
+
+
+
+
+
+        errDiv: { 
             color: "white", 
             background: "maroon", 
             padding: "0px 3px",
             fontFamily: "monospace",
             fontWeight: "bold" 
-        }
+        },
+        ulStyle: {
+            style: { 
+                // display: config.groupsNotCollapsed ? "none" : "block", 
+                display: "none", 
+                margin: "0px 0px 0px 12px",
+                padding: "0px",
+                border: "1px solid #E0E0E0",
+                background: IE8 ? "#FFF0C0" : "rgba(255,232,192,0.2)",
+                fontFamily: "monospace",
+                listStyle: "none"
+            }
+        },
+        liStyle: {
+            style: { 
+                textIndent: "4px",
+                overflow: "hidden"
+            }
+        },
+        aTypeStyle: {
+            style: { 
+                display: "block",
+                overflow: "hidden",
+                color: "navy",
+                background: "#E0E0E0",
+                borderRadius: "0px",
+                fontWeight: "bold",
+                textDecoration: "none"
+            }
+        },
+        aObjStyle: {
+            style: { 
+                display: "block",
+                overflow: "hidden",
+                color: "navy",
+                borderRadius: "0px",
+                fontWeight: "bold",
+                textDecoration: "none"
+            }
+        },
+        aObjRefOverStyle: { style: {  background: "#FFC000" /* borderRight: "14px solid #FFC000" */ } },
+
+
+
+
+
+
+
+
+        aObjRefOutStyle: { style: { background: "transparent" } }
     };
     var alert = window.alert;
-    var lastErrMsg = "";
+
     var clear = function(n) { 
         if(n > 1) {
             while(n <= div.childNodes.length) {
@@ -91,8 +115,8 @@ var println = (function() {
         } else { div.innerHTML = ""; }
     };
     var print = function(string, poly, timeout) {
-        if(config.debug || poly && poly.tagName) {
-            if(this.attachEvent) return (string.toString().indexOf("<")<0) ? console.log(string) : null; // IE8
+		if(config.debug) {
+            // if(IE8) return (string.toString().indexOf("<")+1) ? console.log(string) : null;
             if(poly) {
                 if(typeof poly == "number")
                     clear(poly);
@@ -120,34 +144,89 @@ var println = (function() {
             }
         }
     };
+    
+    // http://helephant.com/2007/05/12/diy-javascript-stack-trace/
+    Function.prototype.trace = function() {
+        var trace = [];
+        var current = this;
+        while(current) {
+            trace.push(current.signature());
+            current = current.caller;
+        }
+        return trace;
+    };
+    Function.prototype.signature = function() {
+        var signature = {
+            name: this.getName(),
+            params: [],
+            toString: function() {
+                var params = this.params.length > 0 ?
+                    "'" + this.params.join("', '") + "'" : "";
+                return this.name + "(" + params + ")"
+            }
+        };
+        if(this.arguments) {
+            for(var x = 0; x < this.arguments.length; x++)
+                signature.params.push(this.arguments[x]);
+        }
+        return signature;
+    };
+    Function.prototype.getName = function() {
+        if(this.name)
+            return this.name;
+        var definition = this.toString().split("\n")[0];
+        var exp = /^function ([^\s(]+).+/;//|>;
+        if(exp.test(definition))
+            return definition.split("\n")[0].replace(exp, "$1") || "anonymous";
+        return "anonymous";
+    };
+
     var printError = function(e) { 
         // http://stackoverflow.com/questions/591857/how-can-i-get-a-javascript-stack-trace-when-i-throw-an-exception
         // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Error
-        e = e.fileName ? e : new Error(e);
-        var cutHRef = function(f) {
+
+        var stack, errDiv = oc.dom.createDiv(style.errDiv, div);
+        var file = (function(f) {
             return (f.indexOf('/') > 0) ? f.match(/[\d\w-.:]*$/) : f;
-        };
-        var stacktrace = function() { 
-            function st2(f) {
-                return !f ? [] : 
-                    st2(f.caller).concat([f.toString().split('(')[0].substring(9) + '(' + f.arguments.join(',') + ')']);
-                }
-            return st2(arguments.callee.caller);
-        };
-        var file = cutHRef(e.fileName);
-        var msg = (lastErrMsg || e.toString()) + (file ? " [" + file + ":" + e.lineNumber + "," + e.columnNumber + "]" : "");
-        lastErrMsg = "";
-        oc.dom.createDiv(style.errStyle, div).textContent = msg;
-        // if(e.stack && e.stack.indexOf("println")) {
-        if(e.stack) {
-            var stack = [];
-            e.stack.split("@").forEach(function(line) {
-                if(line) {
-                    stack.push(line);
-                    // stack.push(cutHRef(line));
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        })(e.fileName);
+        
+        if(Object.toType(e) == "error") {
+            print(e.toString() + " [" + file + ":" + e.lineNumber + "," + e.columnNumber + "]", errDiv);
+        } else {
+            print(e.message + " [" + file + ":" + e.lineNumber + "]", errDiv);
+            // e = new Error(e);
+        }
+
+        var i = 0, funcs = arguments.callee.trace();
+        
+        if(e.stack) { // only FF
+            var ul = oc.dom.createElement("ul", { style: { margin: "0px" } }, errDiv);
+            e.stack.split("@").forEach(function(s) {
+
+
+
+                s = s.match(/[\d\w-.:]+/g);
+                if(s) {
+                    oc.dom.createElement("li", { }, ul).textContent = s[s.length - 1] + (i > 0 ? " in " + funcs[i] : "");
+                    i++;
                 }
             });
-            print(stack);
+
         }
     };
     
@@ -161,8 +240,10 @@ var println = (function() {
         if(typeof style === "object") oc.dom.appendStyle(div, style); 
     };
     
-    
-    
+
+
+   
+   
     function getProto(obj) {
         try {
             return obj.__proto__;
@@ -179,7 +260,7 @@ var println = (function() {
             // Must force argument to be a local variable or else the closures created will
             // all refer to the same argument variable. One reason for this function.
             var node;
-            var indicator = oc.dom.createElement("span", { paddingRight: "4px" }, nodeObj);
+            var indicator = oc.dom.createElement("span", { style: { paddingRight: "4px" } }, nodeObj);
             if(visible) {
                 src.style.display = "block"; 
                 indicator.innerHTML = "-";
@@ -317,8 +398,10 @@ var println = (function() {
         window.alert = (config.overrideAlert) ? println : window.alert = alert;        
         
         if(config.printScriptErrors) {
-            // in FF error msg is outputed via window.onerror only!
-            window.onerror = function(msg) { lastErrMsg = msg; };
+            // in FF error message is outputed via window.onerror only!
+            window.onerror = function(m, f, l, c, o) { 
+                printError(o || { message: m, fileName: f, lineNumber: l, columnNumber: c }); 
+            };
             addEvent(window, "error", printError);
         } else {
             window.onerror = null;
