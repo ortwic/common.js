@@ -1,5 +1,5 @@
 # common.js
-js library with lots of useful js functions and polyfills
+ECMAScript 5 library with lots of useful js functions and polyfills. Like a light version of jquery. So actually obsolete. Use jquery. :-)
 - string helper
   - format
   - capitalize
